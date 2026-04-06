@@ -4,3 +4,8 @@ __pycache__/
 .env
 .venv/
 .superpowers/
+dist/
+build/
+*.spec
+.DS_Store
+

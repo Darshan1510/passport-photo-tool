@@ -1,7 +1,12 @@
 import os
 import io
 import uuid
+import sys
+import webview
+import threading
+
 from pathlib import Path
+
 
 import cv2
 import numpy as np
@@ -9,6 +14,9 @@ from PIL import Image
 import requests as http_requests
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+import uvicorn
 
 app = FastAPI()
 
@@ -22,7 +30,20 @@ def _session_dir(session_id: str) -> Path:
     return d
 
 
+def get_static_path():
+    # PyInstaller creates a temp folder and stores path in _MEIPASS
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "static"
+    return Path(".") / "static"
+
+
+def run_server():
+    # We run uvicorn in a function so we can put it in a background thread
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+
+
 # --- Image Processing Functions ---
+
 
 def apply_clahe(img: np.ndarray, clip_limit: float = 2.0) -> np.ndarray:
     """Apply CLAHE to the L channel in LAB color space for even lighting."""
@@ -39,7 +60,9 @@ def detect_face(img: np.ndarray) -> tuple[int, int, int, int] | None:
     cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     face_cascade = cv2.CascadeClassifier(cascade_path)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    faces = face_cascade.detectMultiScale(
+        gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+    )
     if len(faces) == 0:
         return None
     faces = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)
@@ -91,10 +114,13 @@ def resize_to_passport(img: Image.Image) -> Image.Image:
 
 # --- API Endpoints ---
 
+app.mount("/static", StaticFiles(directory=get_static_path()), name="static")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    index_path = Path("static/index.html")
-    return HTMLResponse(index_path.read_text())
+    index_path = get_static_path() / "index.html"
+    return FileResponse(index_path)
 
 
 @app.post("/upload")
@@ -227,5 +253,11 @@ async def export(body: dict):
 
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+
+    window = webview.create_window(
+        "Passport Photo Tool", "http://127.0.0.1:8000", width=800, height=600
+    )
+
+    webview.start()

@@ -1,0 +1,17 @@
+[project]
+name = "passport-photo-tool"
+version = "0.1.0"
+description = "A tool to edit and generate a compliant indian passport photo to upload on the application. "
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.135.3",
+  "numpy>=2.4.4",
+  "opencv-python-headless>=4.13.0.92",
+  "pillow>=12.2.0",
+  "pyinstaller>=6.19.0",
+  "python-multipart>=0.0.24",
+  "pywebview>=6.1",
+  "requests>=2.33.1",
+  "uvicorn>=0.43.0",
+]
