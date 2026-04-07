@@ -100,10 +100,50 @@
   <!-- Step 2: Background Removal -->
   <div class="step-panel" id="step-2">
     <h2>Step 2: Background Removal</h2>
-    <div class="loading" id="bg-loading"><div class="spinner"></div><p>Removing background...</p></div>
+
+    <!-- State B: model already cached -->
+    <div id="bg-state-b" style="display:none; text-align:center;">
+      <p style="margin-bottom:16px;">Background removal model is ready on this computer.</p>
+      <div class="actions">
+        <button class="btn btn-secondary" id="bg-skip-b">Skip</button>
+        <button class="btn btn-primary" id="bg-run-local">Remove background</button>
+      </div>
+    </div>
+
+    <!-- State C: model not cached, no API key -->
+    <div id="bg-state-c" style="display:none; text-align:center;">
+      <p style="margin-bottom:12px;">Background removal needs a one-time download of an AI model (~168MB).</p>
+      <p style="margin-bottom:16px; color:#666; font-size:13px;">It runs entirely on your computer — no data leaves your machine. After downloading, it's cached so you won't need to download it again.</p>
+      <div class="actions">
+        <button class="btn btn-secondary" id="bg-skip-c">Skip</button>
+        <button class="btn btn-primary" id="bg-download">Download model &amp; remove background</button>
+      </div>
+    </div>
+
+    <!-- Download progress -->
+    <div id="bg-progress" style="display:none; padding:24px;">
+      <p id="bg-progress-text" style="text-align:center; margin-bottom:12px;">Downloading model...</p>
+      <div style="background:#e5e7eb; border-radius:6px; height:12px; overflow:hidden;">
+        <div id="bg-progress-bar" style="background:#2563eb; height:100%; width:0%; transition:width 200ms;"></div>
+      </div>
+    </div>
+
+    <!-- Download error -->
+    <div id="bg-error" style="display:none; text-align:center; padding:16px;">
+      <p style="color:#b91c1c; margin-bottom:12px;" id="bg-error-text"></p>
+      <div class="actions">
+        <button class="btn btn-secondary" id="bg-skip-error">Skip</button>
+        <button class="btn btn-primary" id="bg-retry">Retry</button>
+      </div>
+    </div>
+
+    <!-- Running spinner -->
+    <div class="loading" id="bg-loading" style="display:none;"><div class="spinner"></div><p>Removing background...</p></div>
+
+    <!-- Result preview -->
     <div class="compare" id="bg-compare" style="display:none;">
       <div class="panel"><img id="bg-before"><div class="label">Before</div></div>
-      <div class="panel"><img id="bg-after"><div class="label">After (white background)</div></div>
+      <div class="panel"><img id="bg-after"><div class="label">After</div></div>
     </div>
     <div class="actions" id="bg-actions" style="display:none;">
       <button class="btn btn-secondary" onclick="goToStep(1)">Re-upload</button>
@@ -222,31 +262,130 @@
   }
 
   // --- Step 2: Background removal ---
+  let bgPollTimer = null;
+
+  const BG_PANELS = [
+    'bg-state-b', 'bg-state-c', 'bg-progress', 'bg-error',
+    'bg-loading', 'bg-compare', 'bg-actions',
+  ];
+
+  function bgHideAll() {
+    BG_PANELS.forEach(id => document.getElementById(id).style.display = 'none');
+  }
+
   async function goToStep2() {
     goToStep(2);
-    document.getElementById('bg-loading').style.display = '';
-    document.getElementById('bg-compare').style.display = 'none';
-    document.getElementById('bg-actions').style.display = 'none';
+    bgHideAll();
 
-    const resp = await fetch('/remove-background', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId }),
-    });
-
-    if (!resp.ok) {
-      alert('Background removal failed. Check your REMOVE_BG_API_KEY.');
+    let status;
+    try {
+      const resp = await fetch('/bg-removal/status');
+      status = await resp.json();
+    } catch (e) {
+      alert('Failed to query background removal status: ' + e);
       goToStep(1);
       return;
     }
 
+    if (status.has_api_key) {
+      // State A: invisible — auto-run remote, same as old behavior.
+      bgRun('remote');
+    } else if (status.model_cached) {
+      document.getElementById('bg-state-b').style.display = '';
+    } else {
+      document.getElementById('bg-state-c').style.display = '';
+    }
+  }
+
+  async function bgRun(mode) {
+    bgHideAll();
+    document.getElementById('bg-loading').style.display = '';
+    try {
+      const resp = await fetch('/remove-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, mode }),
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || ('HTTP ' + resp.status));
+      }
+    } catch (e) {
+      bgHideAll();
+      alert('Background removal failed: ' + e.message);
+      goToStep(1);
+      return;
+    }
+    bgHideAll();
     const ts = Date.now();
     document.getElementById('bg-before').src = '/image/' + sessionId + '/original?' + ts;
     document.getElementById('bg-after').src = '/image/' + sessionId + '/no_bg?' + ts;
-    document.getElementById('bg-loading').style.display = 'none';
     document.getElementById('bg-compare').style.display = '';
     document.getElementById('bg-actions').style.display = '';
   }
+
+  async function bgStartDownload() {
+    bgHideAll();
+    document.getElementById('bg-progress').style.display = '';
+    document.getElementById('bg-progress-bar').style.width = '0%';
+    document.getElementById('bg-progress-text').textContent = 'Downloading model...';
+
+    try {
+      const resp = await fetch('/bg-removal/download-model', { method: 'POST' });
+      if (!resp.ok && resp.status !== 409) {
+        throw new Error('HTTP ' + resp.status);
+      }
+    } catch (e) {
+      bgShowError('Failed to start download: ' + e.message);
+      return;
+    }
+
+    if (bgPollTimer) clearInterval(bgPollTimer);
+    bgPollTimer = setInterval(bgPollProgress, 500);
+  }
+
+  async function bgPollProgress() {
+    let state;
+    try {
+      const resp = await fetch('/bg-removal/download-progress');
+      state = await resp.json();
+    } catch (e) {
+      return; // transient; keep polling
+    }
+
+    if (state.state === 'downloading') {
+      const total = state.total || 0;
+      const bytes = state.bytes || 0;
+      const pct = total > 0 ? Math.floor((bytes / total) * 100) : 0;
+      document.getElementById('bg-progress-bar').style.width = pct + '%';
+      const mb = n => (n / (1024 * 1024)).toFixed(1);
+      document.getElementById('bg-progress-text').textContent =
+        total > 0
+          ? 'Downloading model... ' + mb(bytes) + ' / ' + mb(total) + ' MB (' + pct + '%)'
+          : 'Downloading model... ' + mb(bytes) + ' MB';
+    } else if (state.state === 'done') {
+      clearInterval(bgPollTimer);
+      bgPollTimer = null;
+      bgRun('local');
+    } else if (state.state === 'error') {
+      clearInterval(bgPollTimer);
+      bgPollTimer = null;
+      bgShowError(state.error || 'Unknown download error');
+    }
+  }
+
+  function bgShowError(msg) {
+    bgHideAll();
+    document.getElementById('bg-error-text').textContent = msg;
+    document.getElementById('bg-error').style.display = '';
+  }
+
+  document.getElementById('bg-run-local').addEventListener('click', () => bgRun('local'));
+  document.getElementById('bg-skip-b').addEventListener('click', () => bgRun('skip'));
+  document.getElementById('bg-download').addEventListener('click', bgStartDownload);
+  document.getElementById('bg-skip-c').addEventListener('click', () => bgRun('skip'));
+  document.getElementById('bg-retry').addEventListener('click', bgStartDownload);
+  document.getElementById('bg-skip-error').addEventListener('click', () => bgRun('skip'));
 
   // --- Step 3: Lighting ---
   async function goToStep3() {
