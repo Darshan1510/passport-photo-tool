@@ -166,7 +166,6 @@
     </div>
     <div class="actions" id="light-actions" style="display:none;">
       <button class="btn btn-secondary" onclick="skipLighting()">Skip (keep original)</button>
-      <button class="btn btn-secondary" onclick="reapplyLighting()">Re-apply</button>
       <button class="btn btn-primary" onclick="goToStep4()">Continue</button>
     </div>
   </div>
@@ -388,22 +387,16 @@
   document.getElementById('bg-skip-error').addEventListener('click', () => bgRun('skip'));
 
   // --- Step 3: Lighting ---
+  let lightingReqSeq = 0;
+
   async function goToStep3() {
     goToStep(3);
-    await applyLighting(2.0);
-  }
-
-  async function applyLighting(clipLimit) {
     document.getElementById('light-loading').style.display = '';
     document.getElementById('light-compare').style.display = 'none';
     document.getElementById('light-slider').style.display = 'none';
     document.getElementById('light-actions').style.display = 'none';
 
-    await fetch('/fix-lighting', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, clip_limit: clipLimit }),
-    });
+    await fetchLighting(2.0);
 
     const ts = Date.now();
     document.getElementById('light-before').src = '/image/' + sessionId + '/no_bg?' + ts;
@@ -414,14 +407,40 @@
     document.getElementById('light-actions').style.display = '';
   }
 
+  async function fetchLighting(clipLimit) {
+    return fetch('/fix-lighting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, clip_limit: clipLimit }),
+    });
+  }
+
+  async function updateLighting(clipLimit) {
+    const seq = ++lightingReqSeq;
+    const after = document.getElementById('light-after');
+    after.style.opacity = '0.6';
+    await fetchLighting(clipLimit);
+    if (seq !== lightingReqSeq) return; // a newer request superseded us
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        if (seq !== lightingReqSeq) return resolve();
+        after.src = img.src;
+        after.style.opacity = '1';
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = '/image/' + sessionId + '/lighting?' + Date.now();
+    });
+  }
+
   document.getElementById('clahe-slider').addEventListener('input', e => {
     document.getElementById('clahe-value').textContent = parseFloat(e.target.value).toFixed(1);
   });
 
-  function reapplyLighting() {
-    const val = parseFloat(document.getElementById('clahe-slider').value);
-    applyLighting(val);
-  }
+  document.getElementById('clahe-slider').addEventListener('change', e => {
+    updateLighting(parseFloat(e.target.value));
+  });
 
   async function skipLighting() {
     await fetch('/fix-lighting', {
