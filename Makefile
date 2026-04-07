@@ -33,11 +33,11 @@ build-windows:
 		--add-data "static;static" \
 		$(COLLECT) \
 		--name "$(NAME)" \
-		--icon assets/app.ico
+		--icon assets/app.ico \
 		$(ENTRY)
 
 build-mac-ci: build-mac
-	hdiutil create -volname "$(NAME)" -srcfolder "dist/$(NAME).app" -ov -format UDZO "$(NAME).dmg"
+	ditto -c -k --sequesterRsrc --keepParent "dist/$(NAME).app" "$(NAME)-macOS.zip"
 
 build-windows-ci: build-windows
 	powershell Compress-Archive -Path "dist/$(NAME)" -DestinationPath "$(NAME)-Windows.zip" -Force
