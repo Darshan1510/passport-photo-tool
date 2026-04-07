@@ -55,10 +55,11 @@
   .crop-container img { max-height: 500px; max-width: 100%; display: block; }
   .crop-container canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
 
-  /* Face % indicator */
-  .face-pct { font-size: 18px; font-weight: 600; text-align: center; margin: 8px 0; }
-  .face-pct.good { color: #16a34a; }
-  .face-pct.bad { color: #dc2626; }
+  /* Crop status indicator */
+  .crop-status { font-size: 16px; font-weight: 600; text-align: center; margin: 8px 0; min-height: 22px; }
+  .crop-status .ok { color: #16a34a; }
+  .crop-status .bad { color: #dc2626; }
+  .crop-status .warn { color: #dc2626; margin-left: 12px; }
 
   /* Loading spinner */
   .loading { text-align: center; padding: 40px; color: #666; }
@@ -174,7 +175,7 @@
   <div class="step-panel" id="step-4">
     <h2>Step 4: Crop & Frame</h2>
     <p id="crop-instructions">Adjust the crop box so your face fills 80-85% of the frame.</p>
-    <div class="face-pct" id="face-pct"></div>
+    <div class="crop-status" id="crop-status"></div>
     <div class="crop-container" id="crop-container" style="text-align:center;">
       <img id="crop-img">
       <canvas id="crop-canvas"></canvas>
@@ -480,8 +481,32 @@
         cropRect = { x: (imgW - cw) / 2, y: (imgH - ch) / 2, w: cw, h: ch };
       }
       drawCropOverlay();
-      updateFacePct();
+      updateCropStatus();
     };
+  }
+
+  function updateCropStatus() {
+    const el = document.getElementById('crop-status');
+    if (!faceBox) {
+      el.innerHTML = '<span class="bad">No face detected — adjust manually</span>';
+      return;
+    }
+    const headHeight = faceBox[3] * 1.3;
+    const pct = (headHeight / cropRect.h) * 100;
+    const pctOk = pct >= 78 && pct <= 87;
+    const pctClass = pctOk ? 'ok' : 'bad';
+    let html = '<span class="' + pctClass + '">Head height: ' + pct.toFixed(1) + '% of frame' + (pctOk ? ' \u2713' : '') + '</span>';
+
+    // Check if face center is inside the crop box
+    const faceCx = faceBox[0] + faceBox[2] / 2;
+    const faceCy = faceBox[1] + faceBox[3] / 2;
+    const inside =
+      faceCx >= cropRect.x && faceCx <= cropRect.x + cropRect.w &&
+      faceCy >= cropRect.y && faceCy <= cropRect.y + cropRect.h;
+    if (!inside) {
+      html += '<span class="warn">\u26a0 Face is outside the crop box</span>';
+    }
+    el.innerHTML = html;
   }
 
   function drawCropOverlay() {
@@ -520,19 +545,6 @@
     // Draw resize handle (bottom-right corner)
     ctx.fillStyle = '#2563eb';
     ctx.fillRect(dx + dw - 8, dy + dh - 8, 8, 8);
-  }
-
-  function updateFacePct() {
-    const el = document.getElementById('face-pct');
-    if (!faceBox) {
-      el.textContent = 'No face detected — adjust manually';
-      el.className = 'face-pct bad';
-      return;
-    }
-    const headHeight = faceBox[3] * 1.3;
-    const pct = (headHeight / cropRect.h) * 100;
-    el.textContent = 'Face: ' + pct.toFixed(1) + '%';
-    el.className = 'face-pct ' + (pct >= 78 && pct <= 87 ? 'good' : 'bad');
   }
 
   // Crop canvas mouse interactions
@@ -589,7 +601,7 @@
     }
 
     drawCropOverlay();
-    updateFacePct();
+    updateCropStatus();
   });
 
   cropCanvas.addEventListener('mouseup', () => { isDragging = false; isResizing = false; });
