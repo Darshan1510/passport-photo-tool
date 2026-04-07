@@ -470,13 +470,12 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "numpy" },
-    { name = "onnxruntime" },
     { name = "opencv-python-headless" },
     { name = "pillow" },
     { name = "pyinstaller" },
     { name = "python-multipart" },
     { name = "pywebview" },
-    { name = "rembg" },
+    { name = "rembg", extra = ["cpu"] },
     { name = "requests" },
     { name = "uvicorn" },
 ]
@@ -485,13 +484,12 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "numpy", specifier = ">=2.4.4" },
-    { name = "onnxruntime", specifier = ">=1.19.0" },
     { name = "opencv-python-headless", specifier = ">=4.13.0.92" },
     { name = "pillow", specifier = ">=12.2.0" },
     { name = "pyinstaller", specifier = ">=6.19.0" },
     { name = "python-multipart", specifier = ">=0.0.24" },
     { name = "pywebview", specifier = ">=6.1" },
-    { name = "rembg", specifier = ">=2.0.59" },
+    { name = "rembg", extras = ["cpu"], specifier = ">=2.0.74" },
     { name = "requests", specifier = ">=2.33.1" },
     { name = "uvicorn", specifier = ">=0.43.0" },
 ]
@@ -943,6 +941,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ba/e6/338c1ceff6d47c474c72105eb701441a79626f41734a866f216abbff5891/rembg-2.0.74.tar.gz", hash = "sha256:be21140841c6eef7ce4eaee3944124aac46e8670850c5d04ce6f3133d8455e25", size = 29734, upload-time = "2026-03-25T01:53:20.166Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/31/ff/6e3428bd54091197eafbafa433a79f9cf73c6b7360bcc28f2162b3ee2b94/rembg-2.0.74-py3-none-any.whl", hash = "sha256:73596f6799ad84fe69da255bea91093c5c217341bf3e17a1378e9754e38d0bc7", size = 44364, upload-time = "2026-03-25T01:53:20.997Z" },
+]
+
+[package.optional-dependencies]
+cpu = [
+    { name = "onnxruntime" },
 ]
 
 [[package]]
