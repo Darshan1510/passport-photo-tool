@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, TypedDict
 
 import requests as http_requests
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 MODEL_NAME = "u2net_human_seg"
@@ -170,6 +170,13 @@ def remove_background_remote(
 
 
 def passthrough(input_path: Path, output_path: Path) -> None:
-    """Skip mode: copy the input to the output, normalized to RGB PNG."""
-    img = Image.open(input_path).convert("RGB")
-    img.save(output_path, "PNG")
+    """Skip mode: copy the input to the output, normalized to RGB PNG.
+
+    Applies EXIF orientation so phone photos (which store rotation in EXIF
+    rather than pixel data) come out upright. The rembg/remove.bg paths
+    don't need this because their output is a fresh PNG with already-upright
+    pixels and no EXIF tag.
+    """
+    img = Image.open(input_path)
+    img = ImageOps.exif_transpose(img)
+    img.convert("RGB").save(output_path, "PNG")
