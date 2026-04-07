@@ -15,7 +15,7 @@ jobs:
         include:
           - os: macos-latest
             target: build-mac-ci
-            artifact_name: PassportPhotoTool.dmg
+            artifact_name: PassportPhotoTool-macOS.zip
           - os: windows-latest
             target: build-windows-ci
             artifact_name: PassportPhotoTool-Windows.zip
@@ -59,7 +59,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            PassportPhotoTool.dmg
+            PassportPhotoTool-macOS.zip
             PassportPhotoTool-Windows.zip
           generate_release_notes: true
         env:
