@@ -1,5 +1,4 @@
 import os
-import io
 import uuid
 import sys
 import webview
@@ -11,12 +10,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image
-import requests as http_requests
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 import uvicorn
+
+import bg_removal
 
 app = FastAPI()
 
@@ -98,15 +98,6 @@ def calculate_crop_region(
     return (int(crop_x), int(crop_y), int(crop_w), int(crop_h))
 
 
-def composite_on_white(img: Image.Image) -> Image.Image:
-    """Composite an RGBA image onto a white RGB background."""
-    if img.mode != "RGBA":
-        return img.convert("RGB")
-    white = Image.new("RGB", img.size, (255, 255, 255))
-    white.paste(img, mask=img.split()[3])
-    return white
-
-
 def resize_to_passport(img: Image.Image) -> Image.Image:
     """Resize image to exactly 630x810 pixels."""
     return img.convert("RGB").resize((630, 810), Image.LANCZOS)
@@ -149,31 +140,53 @@ async def get_image(session_id: str, step: str):
 @app.post("/remove-background")
 async def remove_background(body: dict):
     session_id = body["session_id"]
+    mode = body.get("mode", "remote")  # "remote" | "local" | "skip"
     session = _session_dir(session_id)
     original = list(session.glob("original.*"))
     if not original:
         raise HTTPException(404, "Original image not found")
 
-    api_key = os.environ.get("REMOVE_BG_API_KEY")
-    if not api_key:
-        raise HTTPException(500, "REMOVE_BG_API_KEY environment variable not set")
-
-    with open(original[0], "rb") as f:
-        response = http_requests.post(
-            "https://api.remove.bg/v1.0/removebg",
-            files={"image_file": f},
-            data={"size": "auto"},
-            headers={"X-Api-Key": api_key},
-        )
-
-    if response.status_code != 200:
-        raise HTTPException(502, f"remove.bg API error: {response.status_code}")
-
-    fg = Image.open(io.BytesIO(response.content)).convert("RGBA")
-    result = composite_on_white(fg)
     out_path = session / "no_bg.png"
-    result.save(out_path, "PNG")
+
+    try:
+        if mode == "skip":
+            bg_removal.passthrough(original[0], out_path)
+        elif mode == "local":
+            bg_removal.remove_background_local(original[0], out_path)
+        elif mode == "remote":
+            api_key = os.environ.get("REMOVE_BG_API_KEY")
+            if not api_key:
+                raise HTTPException(
+                    400, "REMOVE_BG_API_KEY not set; use mode 'local' or 'skip'"
+                )
+            bg_removal.remove_background_remote(original[0], out_path, api_key)
+        else:
+            raise HTTPException(400, f"Unknown mode: {mode}")
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
     return {"status": "ok"}
+
+
+@app.get("/bg-removal/status")
+async def bg_removal_status():
+    return {
+        "has_api_key": bool(os.environ.get("REMOVE_BG_API_KEY")),
+        "model_cached": bg_removal.is_model_cached(),
+    }
+
+
+@app.post("/bg-removal/download-model")
+async def bg_removal_download_model():
+    started = bg_removal.start_download()
+    if not started:
+        raise HTTPException(409, "Download already in progress")
+    return {"status": "started"}
+
+
+@app.get("/bg-removal/download-progress")
+async def bg_removal_download_progress():
+    return bg_removal.get_download_state()
 
 
 @app.post("/fix-lighting")
