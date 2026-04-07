@@ -14,7 +14,9 @@ COLLECT := \
 	--collect-all fastapi \
 	--collect-all webview \
 	--collect-all rembg \
-	--collect-all onnxruntime
+	--collect-all onnxruntime \
+	--collect-data cv2 \
+	--copy-metadata pymatting
 
 .PHONY: build-mac build-windows clean
 
@@ -34,4 +36,4 @@ build-windows:
 		$(ENTRY)
 
 clean:
-	rm -rf build dist
+	rm -rf build/ dist/
