@@ -32,7 +32,7 @@ Download `PassportPhotoTool-Windows.zip` from the [latest release](https://githu
 xattr -cr ~/Applications/PassportPhotoTool.app
 ```
 
-**Installer says "Unsupported architecture"**: the installer only supports `arm64` (Apple Silicon) and `x86_64` (Intel) Macs. If you're seeing this on a supported Mac, please open an issue.
+**Installer says "Intel Macs are not currently supported"**: only Apple Silicon (arm64) builds are published. If you need an Intel build, please open an issue.
 
 **Can't find the app after install**: it's in `~/Applications` (your personal Applications folder, not the system one). Launchpad and Spotlight both index it.
 

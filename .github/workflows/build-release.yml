@@ -16,9 +16,6 @@ jobs:
           - os: macos-14
             target: build-mac-ci
             artifact_name: PassportPhotoTool-macOS-arm64.zip
-          - os: macos-13
-            target: build-mac-ci
-            artifact_name: PassportPhotoTool-macOS-x86_64.zip
           - os: windows-latest
             target: build-windows-ci
             artifact_name: PassportPhotoTool-Windows.zip
@@ -63,7 +60,6 @@ jobs:
         with:
           files: |
             PassportPhotoTool-macOS-arm64.zip
-            PassportPhotoTool-macOS-x86_64.zip
             PassportPhotoTool-Windows.zip
           generate_release_notes: true
         env:

@@ -29,11 +29,19 @@ fi
 
 ARCH=$(uname -m)
 case "$ARCH" in
-    arm64)  ASSET="$APP_NAME-macOS-arm64.zip" ;;
-    x86_64) ASSET="$APP_NAME-macOS-x86_64.zip" ;;
+    arm64)
+        ASSET="$APP_NAME-macOS-arm64.zip"
+        ;;
+    x86_64)
+        err "Intel Macs are not currently supported."
+        err "Only Apple Silicon (arm64) builds are published."
+        err "If you need an Intel build, please open an issue at"
+        err "  https://github.com/$REPO/issues"
+        exit 1
+        ;;
     *)
         err "Unsupported architecture: $ARCH"
-        err "Expected arm64 (Apple Silicon) or x86_64 (Intel)."
+        err "Expected arm64 (Apple Silicon)."
         exit 1
         ;;
 esac
