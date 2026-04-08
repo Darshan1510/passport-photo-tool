@@ -8,6 +8,7 @@
 PYI := uv run pyinstaller
 NAME := PassportPhotoTool
 ENTRY := main.py
+ARCH := $(shell uname -m)
 
 COLLECT := \
 	--collect-all uvicorn \
@@ -37,7 +38,7 @@ build-windows:
 		$(ENTRY)
 
 build-mac-ci: build-mac
-	ditto -c -k --sequesterRsrc --keepParent "dist/$(NAME).app" "$(NAME)-macOS.zip"
+	ditto -c -k --sequesterRsrc --keepParent "dist/$(NAME).app" "$(NAME)-macOS-$(ARCH).zip"
 
 build-windows-ci: build-windows
 	powershell Compress-Archive -Path "dist/$(NAME)" -DestinationPath "$(NAME)-Windows.zip" -Force
