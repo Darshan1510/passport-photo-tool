@@ -1,7 +1,7 @@
 #!/bin/sh
 # Passport Photo Tool — macOS installer
 #
-# Downloads the latest release, installs it to ~/Applications, strips the
+# Downloads the latest release, installs it to ~/Downloads, strips the
 # macOS quarantine attribute (so Gatekeeper doesn't block the unsigned app),
 # and launches it.
 #
@@ -12,7 +12,7 @@ set -eu
 
 REPO="smitkiri/passport-photo-tool"
 APP_NAME="PassportPhotoTool"
-INSTALL_DIR="$HOME/Applications"
+INSTALL_DIR="$HOME/Downloads"
 APP_PATH="$INSTALL_DIR/$APP_NAME.app"
 
 say() { printf '\033[1;34m==>\033[0m %s\n' "$1"; }
@@ -106,8 +106,8 @@ open "$APP_PATH"
 
 cat <<EOF
 
-$APP_NAME is installed in ~/Applications and should now be open.
-You can relaunch it any time from Launchpad or Spotlight (search "$APP_NAME").
+$APP_NAME is installed in ~/Downloads and should now be open.
+You can relaunch it any time from ~/Downloads or by re-running this installer.
 
 To update later, re-run this installer.
 EOF

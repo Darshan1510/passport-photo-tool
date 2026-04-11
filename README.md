@@ -12,7 +12,7 @@ Open Terminal (Spotlight → type "Terminal" → Enter) and paste:
 curl -LsSf https://raw.githubusercontent.com/smitkiri/passport-photo-tool/main/install.sh | sh
 ```
 
-This downloads the latest release, installs it to `~/Applications`, strips the macOS quarantine flag (so Gatekeeper doesn't block the unsigned app), and launches it. After the first install, you can open the app normally from Launchpad or Spotlight by searching for "PassportPhotoTool".
+This downloads the latest release, installs it to `~/Downloads`, strips the macOS quarantine flag (so Gatekeeper doesn't block the unsigned app), and launches it.
 
 To update, re-run the same command.
 
@@ -29,12 +29,12 @@ Download `PassportPhotoTool-Windows.zip` from the [latest release](https://githu
 **"PassportPhotoTool is damaged and can't be opened"** after installing manually (not via the script): the quarantine attribute wasn't removed. Run:
 
 ```sh
-xattr -cr ~/Applications/PassportPhotoTool.app
+xattr -cr ~/Downloads/PassportPhotoTool.app
 ```
 
 **Installer says "Intel Macs are not currently supported"**: only Apple Silicon (arm64) builds are published. If you need an Intel build, please open an issue.
 
-**Can't find the app after install**: it's in `~/Applications` (your personal Applications folder, not the system one). Launchpad and Spotlight both index it.
+**Can't find the app after install**: it's in `~/Downloads`.
 
 ## Development
 
